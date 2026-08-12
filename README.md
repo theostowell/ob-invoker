@@ -8,7 +8,7 @@ An Obsidian desktop plugin that turns local Codex-style skills into note actions
 - Optionally includes `~/.agents/skills/*/SKILL.md` and custom skill roots.
 - Opens a searchable **Run agent skill…** modal from the ribbon, command palette, or editor context menu.
 - Sends the chosen skill, active note, and current selection to a non-interactive Codex worker.
-- Blurs and locks the note while the worker runs, with live phase updates and cancellation.
+- Blurs and locks the note while the worker runs, prevents its tab from being closed or navigated away from, and provides live phase updates and cancellation.
 - Lets the skill edit the vault or other permitted local files directly.
 
 ## Development/install

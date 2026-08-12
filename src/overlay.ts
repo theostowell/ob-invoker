@@ -37,7 +37,7 @@ export class WorkingOverlay {
     this.statusEl = card.createDiv({ cls: "agent-skills-working-status", text: "Starting worker…" });
     this.detailEl = card.createDiv({
       cls: "agent-skills-working-detail",
-      text: "This note is locked until the action finishes."
+      text: "This note cannot be edited, replaced, or closed until the action finishes."
     });
 
     const footer = card.createDiv({ cls: "agent-skills-working-footer" });

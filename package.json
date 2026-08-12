@@ -1,6 +1,6 @@
 {
   "name": "obsidian-agent-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run local agent skills against the active Obsidian note with a background Codex worker.",
   "main": "main.js",
   "scripts": {

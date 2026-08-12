@@ -10,6 +10,7 @@ import {
   Plugin
 } from "obsidian";
 import { WorkingOverlay } from "./src/overlay";
+import { lockLeafToNote, type LeafLock } from "./src/leaf-lock";
 import { SkillPickerModal } from "./src/picker";
 import { AgentSkillsSettingTab } from "./src/settings";
 import { discoverSkills } from "./src/skills";
@@ -25,6 +26,7 @@ const execFileAsync = promisify(execFile);
 interface ActiveJob {
   overlay: WorkingOverlay;
   worker: WorkerHandle;
+  leafLock: LeafLock;
 }
 
 export default class AgentSkillsPlugin extends Plugin {
@@ -73,6 +75,7 @@ export default class AgentSkillsPlugin extends Plugin {
   onunload(): void {
     for (const job of this.activeJobs.values()) {
       job.worker.cancel();
+      job.leafLock.dispose();
       job.overlay.dispose();
     }
     this.activeJobs.clear();
@@ -143,12 +146,20 @@ export default class AgentSkillsPlugin extends Plugin {
     if (!view.file || this.activeJobs.has(view.contentEl)) return;
 
     let worker: WorkerHandle | null = null;
+    const notePath = view.file.path;
+    let lastLockNoticeAt = 0;
+    const leafLock = lockLeafToNote(view.leaf, notePath, () => {
+      const now = Date.now();
+      if (now - lastLockNoticeAt < 750) return;
+      lastLockNoticeAt = now;
+      new Notice(`${notePath} is locked while ${skill.name} is running. Cancel the action first.`, 5000);
+    });
     const overlay = new WorkingOverlay(view.contentEl, skill.name, () => worker?.cancel());
 
     try {
       worker = startCodexWorker({
         vaultRoot,
-        notePath: view.file.path,
+        notePath,
         selection,
         skill,
         settings: this.settings
@@ -156,12 +167,13 @@ export default class AgentSkillsPlugin extends Plugin {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       overlay.fail(message);
+      leafLock.dispose();
       window.setTimeout(() => overlay.dispose(), 3000);
       new Notice(`Could not start ${skill.name}: ${message}`, 8000);
       return;
     }
 
-    this.activeJobs.set(view.contentEl, { overlay, worker });
+    this.activeJobs.set(view.contentEl, { overlay, worker, leafLock });
     this.updateStatusBar();
 
     try {
@@ -182,6 +194,7 @@ export default class AgentSkillsPlugin extends Plugin {
       new Notice(`${skill.name} failed: ${this.summariseResult(message, 500)}`, 10000);
       window.setTimeout(() => overlay.dispose(), 3500);
     } finally {
+      leafLock.dispose();
       this.activeJobs.delete(view.contentEl);
       this.updateStatusBar();
     }
