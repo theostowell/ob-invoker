@@ -1,0 +1,9 @@
+{
+  "id": "agent-skills",
+  "name": "Agent Skills",
+  "version": "0.1.0",
+  "minAppVersion": "1.7.2",
+  "description": "Pick a local agent skill and run it against the active note with a background Codex worker.",
+  "author": "Theo Stowell",
+  "isDesktopOnly": true
+}

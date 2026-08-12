@@ -1,0 +1,219 @@
+.agent-skills-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.agent-skills-suggestion-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  border-radius: 8px;
+}
+
+.agent-skills-suggestion-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.agent-skills-suggestion-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-skills-suggestion-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-skills-suggestion-name {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.agent-skills-suggestion-source {
+  padding: 1px 6px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  border-radius: 999px;
+}
+
+.agent-skills-suggestion-description {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-skills-running {
+  position: relative !important;
+  overflow: hidden;
+}
+
+.agent-skills-running > :not(.agent-skills-overlay) {
+  filter: blur(4px);
+  opacity: 0.55;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+
+.agent-skills-overlay {
+  position: absolute;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--background-primary) 34%, transparent);
+  backdrop-filter: blur(1px);
+}
+
+.agent-skills-working-card {
+  width: min(390px, calc(100% - 32px));
+  padding: 24px;
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--background-primary) 95%, var(--interactive-accent) 5%);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.24);
+}
+
+.agent-skills-working-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 18px;
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  border-radius: 12px;
+}
+
+.agent-skills-spinner {
+  width: 19px;
+  height: 19px;
+  border: 2px solid color-mix(in srgb, var(--interactive-accent) 25%, transparent);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  animation: agent-skills-spin 0.8s linear infinite;
+}
+
+@keyframes agent-skills-spin {
+  to { transform: rotate(360deg); }
+}
+
+.agent-skills-working-kicker {
+  margin-bottom: 4px;
+  color: var(--interactive-accent);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+}
+
+.agent-skills-working-heading h3 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.agent-skills-working-status {
+  margin-top: 18px;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+
+.agent-skills-working-detail {
+  min-height: 36px;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.45;
+}
+
+.agent-skills-working-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding-top: 15px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.agent-skills-elapsed-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-skills-clock-icon,
+.agent-skills-clock-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-skills-cancel-button {
+  padding: 5px 11px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  background: transparent;
+  box-shadow: none;
+}
+
+.agent-skills-cancel-button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.agent-skills-overlay.is-complete .agent-skills-working-mark {
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+}
+
+.agent-skills-overlay.is-complete .agent-skills-spinner {
+  border: 0;
+  animation: none;
+}
+
+.agent-skills-overlay.is-complete .agent-skills-spinner::after {
+  color: var(--color-green);
+  content: "✓";
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.agent-skills-overlay.is-failed .agent-skills-working-mark {
+  background: color-mix(in srgb, var(--color-red) 14%, transparent);
+}
+
+.agent-skills-overlay.is-failed .agent-skills-spinner,
+.agent-skills-overlay.is-cancelled .agent-skills-spinner {
+  border-top-color: var(--text-muted);
+  animation: none;
+}
+
+.agent-skills-status-bar:not(.is-active) {
+  display: none;
+}
+
+.agent-skills-settings-warning {
+  margin: 10px 0 18px;
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.45;
+  background: var(--background-secondary);
+  border-left: 3px solid var(--color-orange);
+  border-radius: 6px;
+}
