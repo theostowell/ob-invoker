@@ -32,7 +32,7 @@ export function parseSkillMetadata(content: string, fallbackName: string): Pick<
 
   return {
     name: fields.get("name") || fallbackName,
-    description: fields.get("description") || "Run this skill against the active note."
+    description: fields.get("description") || "Run this skill against the active file."
   };
 }
 

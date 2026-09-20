@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { TFile, View, ViewState, WorkspaceLeaf } from "obsidian";
-import { lockLeafToNote } from "../src/leaf-lock";
+import { lockLeafToFile, sameTargetFile } from "../src/leaf-lock";
 
 interface FakeLeafState {
   detached: number;
@@ -40,7 +40,7 @@ function createFakeLeaf(): { leaf: WorkspaceLeaf; state: FakeLeafState } {
 test("a locked leaf cannot detach, replace its view, or open another file", async () => {
   const { leaf, state } = createFakeLeaf();
   let blocked = 0;
-  const lock = lockLeafToNote(leaf, "Target.md", () => { blocked += 1; });
+  const lock = lockLeafToFile(leaf, "Target.md", () => { blocked += 1; });
 
   leaf.detach();
   await leaf.open({ id: "replacement" } as unknown as View);
@@ -56,9 +56,9 @@ test("a locked leaf cannot detach, replace its view, or open another file", asyn
   lock.dispose();
 });
 
-test("a locked leaf still permits operations that retain the target note", async () => {
+test("a locked leaf still permits operations that retain the target file", async () => {
   const { leaf, state } = createFakeLeaf();
-  const lock = lockLeafToNote(leaf, "Target.md", () => assert.fail("should not block"));
+  const lock = lockLeafToFile(leaf, "Target.md", () => assert.fail("should not block"));
 
   await leaf.open(leaf.view);
   await leaf.openFile({ path: "Target.md" } as TFile);
@@ -70,9 +70,42 @@ test("a locked leaf still permits operations that retain the target note", async
   lock.dispose();
 });
 
+test("a locked leaf permits the same file under a non-markdown view type", async () => {
+  const { leaf, state } = createFakeLeaf();
+  const lock = lockLeafToFile(
+    leaf,
+    "Content/Carousels/example.html",
+    () => assert.fail("should not block")
+  );
+
+  await leaf.setViewState({
+    type: "html-docs",
+    state: { file: "Content/Carousels/example.html" }
+  });
+
+  assert.equal(state.viewStates.length, 1);
+  lock.dispose();
+});
+
+test("sameTargetFile matches any view type that still points at the file", () => {
+  assert.equal(
+    sameTargetFile({ type: "html-docs", state: { file: "page.html" } }, "page.html"),
+    true
+  );
+  assert.equal(
+    sameTargetFile({ type: "markdown", state: { file: "page.html" } }, "page.html"),
+    true
+  );
+  assert.equal(
+    sameTargetFile({ type: "html-docs", state: { file: "other.html" } }, "page.html"),
+    false
+  );
+  assert.equal(sameTargetFile({ type: "empty", state: {} }, "page.html"), false);
+});
+
 test("disposing the lock restores the leaf methods", async () => {
   const { leaf, state } = createFakeLeaf();
-  const lock = lockLeafToNote(leaf, "Target.md", () => undefined);
+  const lock = lockLeafToFile(leaf, "Target.md", () => undefined);
 
   lock.dispose();
   lock.dispose();

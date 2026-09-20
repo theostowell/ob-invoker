@@ -60,6 +60,10 @@
   overflow: hidden;
 }
 
+.agent-skills-running iframe {
+  z-index: 0;
+}
+
 .agent-skills-running > :not(.agent-skills-overlay) {
   filter: blur(4px);
   opacity: 0.55;

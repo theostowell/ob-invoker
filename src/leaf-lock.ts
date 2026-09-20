@@ -4,20 +4,20 @@ export interface LeafLock {
   dispose: () => void;
 }
 
-function sameTargetNote(viewState: ViewState, notePath: string): boolean {
+export function sameTargetFile(viewState: ViewState, filePath: string): boolean {
   const state = viewState.state;
-  if (viewState.type !== "markdown" || !state || typeof state !== "object") return false;
-  return (state as Record<string, unknown>).file === notePath;
+  if (!state || typeof state !== "object") return false;
+  return (state as Record<string, unknown>).file === filePath;
 }
 
 /**
  * Temporarily prevents a leaf from being detached or navigated away from its
- * target note. Methods are patched on this leaf instance only and restored
+ * target file. Methods are patched on this leaf instance only and restored
  * exactly when the worker settles.
  */
-export function lockLeafToNote(
+export function lockLeafToFile(
   leaf: WorkspaceLeaf,
-  notePath: string,
+  filePath: string,
   onBlocked: () => void
 ): LeafLock {
   const originalDetach = leaf.detach;
@@ -42,7 +42,7 @@ export function lockLeafToNote(
   };
 
   leaf.openFile = async (file: TFile, openState): Promise<void> => {
-    if (file.path === notePath) {
+    if (file.path === filePath) {
       await originalOpenFile.call(leaf, file, openState);
       return;
     }
@@ -50,7 +50,7 @@ export function lockLeafToNote(
   };
 
   leaf.setViewState = async (viewState: ViewState, eState?: unknown): Promise<void> => {
-    if (sameTargetNote(viewState, notePath)) {
+    if (sameTargetFile(viewState, filePath)) {
       await originalSetViewState.call(leaf, viewState, eState);
       return;
     }

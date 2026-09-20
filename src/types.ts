@@ -1,7 +1,14 @@
 export type WorkerAccess = "full" | "workspace";
+export type WorkerBackend = "codex" | "opencode";
+
+export function coerceBackend(value: unknown): WorkerBackend {
+  return value === "opencode" ? "opencode" : "codex";
+}
 
 export interface AgentSkillsSettings {
+  backend: WorkerBackend;
   codexPath: string;
+  opencodePath: string;
   model: string;
   access: WorkerAccess;
   includeGlobalSkills: boolean;
@@ -10,7 +17,9 @@ export interface AgentSkillsSettings {
 }
 
 export const DEFAULT_SETTINGS: AgentSkillsSettings = {
+  backend: "codex",
   codexPath: "",
+  opencodePath: "",
   model: "",
   access: "full",
   includeGlobalSkills: true,

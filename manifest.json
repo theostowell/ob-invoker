@@ -1,9 +1,9 @@
 {
   "id": "agent-skills",
   "name": "Agent Skills",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "minAppVersion": "1.7.2",
-  "description": "Pick a local agent skill and run it against the active note with a background Codex worker.",
+  "description": "Pick a local agent skill and run it against the active file with a background Codex or OpenCode worker.",
   "author": "Theo Stowell",
   "isDesktopOnly": true
 }

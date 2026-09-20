@@ -3,23 +3,34 @@ import { promisify } from "node:util";
 import {
   Editor,
   FileSystemAdapter,
+  FileView,
   MarkdownView,
   type MarkdownFileInfo,
   Menu,
   Notice,
-  Plugin
+  Plugin,
+  TFile,
+  type TAbstractFile,
+  type WorkspaceLeaf
 } from "obsidian";
 import { WorkingOverlay } from "./src/overlay";
-import { lockLeafToNote, type LeafLock } from "./src/leaf-lock";
+import { lockLeafToFile, type LeafLock } from "./src/leaf-lock";
 import { SkillPickerModal } from "./src/picker";
 import { AgentSkillsSettingTab } from "./src/settings";
 import { discoverSkills } from "./src/skills";
 import {
   DEFAULT_SETTINGS,
+  coerceBackend,
   type AgentSkillsSettings,
   type SkillDefinition
 } from "./src/types";
-import { resolveCodexBinary, startCodexWorker, type WorkerHandle } from "./src/worker";
+import {
+  resolveWorkerBinary,
+  startWorker,
+  workerBackend,
+  workerLabel,
+  type WorkerHandle
+} from "./src/worker";
 
 const execFileAsync = promisify(execFile);
 
@@ -46,7 +57,7 @@ export default class AgentSkillsPlugin extends Plugin {
       id: "run-agent-skill",
       name: "Run agent skill…",
       checkCallback: (checking) => {
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const view = this.getActiveFileView();
         if (!view?.file) return false;
         if (!checking) void this.openSkillPicker(view);
         return true;
@@ -63,6 +74,21 @@ export default class AgentSkillsPlugin extends Plugin {
           .setIcon("wand-sparkles")
           .onClick(() => {
             void this.openSkillPicker(info, editor.getSelection());
+          }));
+      }
+    ));
+
+    this.registerEvent(this.app.workspace.on(
+      "file-menu",
+      (menu: Menu, file: TAbstractFile, _source: string, leaf?: WorkspaceLeaf) => {
+        if (!(file instanceof TFile)) return;
+        menu.addSeparator();
+        menu.addItem((item) => item
+          .setTitle("Run agent skill…")
+          .setIcon("wand-sparkles")
+          .onClick(() => {
+            const view = leaf?.view instanceof FileView ? leaf.view : undefined;
+            void this.openSkillPickerForFile(file, view);
           }));
       }
     ));
@@ -84,21 +110,24 @@ export default class AgentSkillsPlugin extends Plugin {
   async loadSettings(): Promise<void> {
     const saved = await this.loadData() as Partial<AgentSkillsSettings> | null;
     this.settings = { ...DEFAULT_SETTINGS, ...(saved ?? {}) };
+    this.settings.backend = coerceBackend(this.settings.backend);
+    if (typeof this.settings.opencodePath !== "string") this.settings.opencodePath = "";
   }
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
   }
 
-  async checkCodexInstallation(): Promise<string> {
-    const binary = resolveCodexBinary(this.settings.codexPath);
+  async checkWorkerInstallation(): Promise<string> {
+    const label = workerLabel(workerBackend(this.settings));
+    const binary = resolveWorkerBinary(this.settings);
     try {
       const { stdout, stderr } = await execFileAsync(binary, ["--version"], { timeout: 10000 });
       const version = (stdout || stderr).trim();
-      return version ? `Codex is ready: ${version}` : `Codex is ready at ${binary}`;
+      return version ? `${label} is ready: ${version}` : `${label} is ready at ${binary}`;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return `Codex check failed at ${binary}: ${message}`;
+      return `${label} check failed at ${binary}: ${message}`;
     }
   }
 
@@ -107,10 +136,46 @@ export default class AgentSkillsPlugin extends Plugin {
     return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
   }
 
-  private async openSkillPicker(view?: MarkdownView, capturedSelection?: string): Promise<void> {
-    const markdownView = view ?? this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!markdownView?.file) {
-      new Notice("Open a Markdown note before running an agent skill.");
+  private getActiveFileView(): FileView | null {
+    const view = this.app.workspace.getActiveViewOfType(FileView);
+    return view?.file ? view : null;
+  }
+
+  private findFileView(file: TFile): FileView | null {
+    let found: FileView | null = null;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (found) return;
+      const view = leaf.view;
+      if (view instanceof FileView && view.file?.path === file.path) found = view;
+    });
+    return found;
+  }
+
+  private getViewSelection(view: FileView): string {
+    return view instanceof MarkdownView ? view.editor.getSelection() : "";
+  }
+
+  private async openSkillPickerForFile(file: TFile, preferred?: FileView): Promise<void> {
+    const existing = preferred?.file?.path === file.path ? preferred : this.findFileView(file);
+    if (existing) {
+      await this.openSkillPicker(existing);
+      return;
+    }
+
+    const leaf = this.app.workspace.getLeaf(true);
+    await leaf.openFile(file);
+    const opened = leaf.view instanceof FileView ? leaf.view : this.findFileView(file);
+    if (!opened?.file) {
+      new Notice("Open the file before running an agent skill.");
+      return;
+    }
+    await this.openSkillPicker(opened);
+  }
+
+  private async openSkillPicker(view?: FileView, capturedSelection?: string): Promise<void> {
+    const fileView = view?.file ? view : this.getActiveFileView();
+    if (!fileView?.file) {
+      new Notice("Open a file before running an agent skill.");
       return;
     }
 
@@ -120,8 +185,8 @@ export default class AgentSkillsPlugin extends Plugin {
       return;
     }
 
-    if (this.activeJobs.has(markdownView.contentEl)) {
-      new Notice("An agent skill is already running on this note.");
+    if (this.activeJobs.has(fileView.contentEl)) {
+      new Notice("An agent skill is already running on this file.");
       return;
     }
 
@@ -131,14 +196,14 @@ export default class AgentSkillsPlugin extends Plugin {
       return;
     }
 
-    const selection = capturedSelection ?? markdownView.editor.getSelection();
+    const selection = capturedSelection ?? this.getViewSelection(fileView);
     new SkillPickerModal(this.app, skills, (skill) => {
-      void this.runSkill(markdownView, skill, selection, vaultRoot);
+      void this.runSkill(fileView, skill, selection, vaultRoot);
     }).open();
   }
 
   private async runSkill(
-    view: MarkdownView,
+    view: FileView,
     skill: SkillDefinition,
     selection: string,
     vaultRoot: string
@@ -146,20 +211,20 @@ export default class AgentSkillsPlugin extends Plugin {
     if (!view.file || this.activeJobs.has(view.contentEl)) return;
 
     let worker: WorkerHandle | null = null;
-    const notePath = view.file.path;
+    const filePath = view.file.path;
     let lastLockNoticeAt = 0;
-    const leafLock = lockLeafToNote(view.leaf, notePath, () => {
+    const leafLock = lockLeafToFile(view.leaf, filePath, () => {
       const now = Date.now();
       if (now - lastLockNoticeAt < 750) return;
       lastLockNoticeAt = now;
-      new Notice(`${notePath} is locked while ${skill.name} is running. Cancel the action first.`, 5000);
+      new Notice(`${filePath} is locked while ${skill.name} is running. Cancel the action first.`, 5000);
     });
     const overlay = new WorkingOverlay(view.contentEl, skill.name, () => worker?.cancel());
 
     try {
-      worker = startCodexWorker({
+      worker = startWorker({
         vaultRoot,
-        notePath,
+        filePath,
         selection,
         skill,
         settings: this.settings

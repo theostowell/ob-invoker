@@ -1,6 +1,6 @@
 import { Notice, PluginSettingTab, Setting } from "obsidian";
 import type AgentSkillsPlugin from "../main";
-import { resolveCodexBinary } from "./worker";
+import { resolveWorkerBinary, workerBackend, workerLabel } from "./worker";
 
 export class AgentSkillsSettingTab extends PluginSettingTab {
   constructor(private readonly plugin: AgentSkillsPlugin) {
@@ -9,41 +9,61 @@ export class AgentSkillsSettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
+    const backend = workerBackend(this.plugin.settings);
+    const label = workerLabel(backend);
     containerEl.empty();
     containerEl.createEl("h2", { text: "Agent Skills" });
     containerEl.createEl("p", {
       cls: "setting-item-description",
-      text: "Turn the skill files already used by your agents into direct actions on the active note."
+      text: "Turn the skill files already used by your agents into direct actions on the active file."
     });
 
     new Setting(containerEl)
-      .setName("Codex executable")
-      .setDesc("Leave blank to auto-detect ~/.local/bin/codex, Homebrew, or your PATH.")
+      .setName("Worker backend")
+      .setDesc("Codex or OpenCode. Switch here if one account is out of usage.")
+      .addDropdown((dropdown) => dropdown
+        .addOption("codex", "Codex")
+        .addOption("opencode", "OpenCode")
+        .setValue(backend)
+        .onChange(async (value) => {
+          this.plugin.settings.backend = value === "opencode" ? "opencode" : "codex";
+          await this.plugin.saveSettings();
+          this.display();
+        }));
+
+    new Setting(containerEl)
+      .setName(`${label} executable`)
+      .setDesc(backend === "opencode"
+        ? "Leave blank to auto-detect ~/.opencode/bin/opencode, ~/.local/bin/opencode, Homebrew, or your PATH."
+        : "Leave blank to auto-detect ~/.local/bin/codex, Homebrew, or your PATH.")
       .addText((text) => text
         .setPlaceholder("Auto-detect")
-        .setValue(this.plugin.settings.codexPath)
+        .setValue(backend === "opencode" ? this.plugin.settings.opencodePath : this.plugin.settings.codexPath)
         .onChange(async (value) => {
-          this.plugin.settings.codexPath = value.trim();
+          if (backend === "opencode") this.plugin.settings.opencodePath = value.trim();
+          else this.plugin.settings.codexPath = value.trim();
           await this.plugin.saveSettings();
         }));
 
     new Setting(containerEl)
-      .setName("Test Codex")
-      .setDesc(`Currently resolves to: ${resolveCodexBinary(this.plugin.settings.codexPath)}`)
+      .setName(`Test ${label}`)
+      .setDesc(`Currently resolves to: ${resolveWorkerBinary(this.plugin.settings)}`)
       .addButton((button) => button
         .setButtonText("Check installation")
         .onClick(async () => {
           button.setDisabled(true);
-          const message = await this.plugin.checkCodexInstallation();
+          const message = await this.plugin.checkWorkerInstallation();
           new Notice(message, 6000);
           button.setDisabled(false);
         }));
 
     new Setting(containerEl)
       .setName("Model override")
-      .setDesc("Optional. Leave blank to use your normal Codex default model.")
+      .setDesc(backend === "opencode"
+        ? "Optional. Use provider/model, e.g. anthropic/claude-sonnet-4-5. Leave blank for your OpenCode default."
+        : "Optional. Leave blank to use your normal Codex default model.")
       .addText((text) => text
-        .setPlaceholder("Use Codex default")
+        .setPlaceholder(backend === "opencode" ? "provider/model" : "Use Codex default")
         .setValue(this.plugin.settings.model)
         .onChange(async (value) => {
           this.plugin.settings.model = value.trim();
